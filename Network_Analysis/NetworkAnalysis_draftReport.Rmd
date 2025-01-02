@@ -1,0 +1,209 @@
+---
+title: "NetworkAnalysis_draftReport"
+subtitle: "Based on example PCAP file delivered as CSV on 11/15/2022"
+author: "Z.Smith"
+date: "2022-11-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam a ex at nisl vestibulum finibus. Sed ornare metus mauris, ac elementum purus tristique nec. Cras a nisl quam. Maecenas sodales sapien eu justo congue, sit amet semper metus ultricies. Maecenas ullamcorper dignissim feugiat. Donec scelerisque odio eget diam auctor, in tempus ligula bibendum. Maecenas sodales lorem arcu, sed lacinia turpis dictum nec.
+
+Donec ante urna, dapibus nec neque in, tristique maximus dolor. Sed eu lacinia nunc. Donec mi tellus, ullamcorper ultrices faucibus nec, malesuada id nisl. Vestibulum consectetur a odio ut aliquam. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Proin ultricies nunc varius, gravida dui feugiat, mollis libero. In ornare enim et urna laoreet, quis imperdiet libero finibus. Curabitur nec rutrum ipsum. Sed tincidunt aliquam enim non iaculis. Pellentesque vel est nisi. Pellentesque tristique, dui quis consectetur bibendum, dui tellus finibus orci, sit amet volutpat lectus velit non augue. Sed eget sapien in libero gravida rutrum. Quisque condimentum auctor purus ut faucibus.
+
+```{r loadLibraries, include=FALSE}
+library(tidyverse)
+library(openxlsx)
+library(visNetwork)
+library(networkD3)
+library(gt)
+library(DT)
+
+
+```
+
+
+```{r loadData,echo=FALSE,message=FALSE}
+#Read data in
+folder<-"pcap_files"
+file<-"5678.csv"
+
+data<-read.csv(paste0(folder,"/",file))
+
+#Create Node List----
+#Separate Source and Destination columns to get unique lists
+source_u<-data%>%
+  select(Source)%>%
+  rename(label=Source)%>%
+  distinct()
+
+destination_u<-data%>%
+  select(Destination)%>%
+  rename(label=Destination)%>%
+  distinct()
+
+#Combine Source and Destinations into one unique "Node" list
+nodes<-rbind(source_u,destination_u)
+nodes<-nodes%>%
+  distinct()
+
+#Add unique id to each node
+nodes<-nodes%>%
+  rowid_to_column("id")
+
+#Create Edge List----
+#Group by Source and Destination and summarise to get a "weight" column which is the count of how how many times this grouping shows up
+edge_1<-data%>%
+  group_by(Source,Destination)%>%
+  summarise(weight=n())%>%
+  ungroup()
+
+
+#Add unique id by joining with node df
+edges<-edge_1%>%
+  left_join(nodes,by=c("Source"="label"))%>%
+  rename(from=id)
+
+edges<-edges%>%
+  left_join(nodes,by=c("Destination"="label"))%>%
+  rename(to=id)
+
+#Drop Named COlumns (causes error with network)
+edges<-edges%>%select(-Source,-Destination)
+
+rm(destination_u,source_u,edge_1)
+```
+
+<br>
+
+<br>
+
+## Network Analysis
+
+### Network Maps and Visuals
+
+<br>
+
+Grey = 5 or less connections; Blue = 6-10 connections; Green = 11-20 connections; Gold = 21-30 connections; Red = \>30 connections
+
+```{r visnetworkMap, echo=FALSE,message=FALSE}
+#Adjust so you can see the weights included in visual
+# edges <- mutate(edges, width = weight/5 + 1)
+edges<-edges%>%
+  mutate(color=ifelse(weight<=5,"grey",
+                      ifelse(weight>5 & weight<=10,"blue",
+                             ifelse(weight > 10 & weight<=20,"green",
+                                    ifelse(weight > 20 & weight <=30,"gold","red")))),
+         width=5)
+#Generate Visual
+visNetwork(nodes,edges,main = "Network Visualization",width = "100%",height="650px") %>%
+  visIgraphLayout(layout = "layout_nicely")%>%
+  visEdges(arrows="middle")%>%
+  visNodes(color = list(highlight="lightgreen"))%>%
+  visOptions(nodesIdSelection=list(enabled = TRUE, 
+              style = 'width: 200px; height: 26px;
+               background: #f8f8f8;
+               color: darkblue;
+               border:none;
+               outline:none;'),
+              highlightNearest = list(enabled = T, degree = 1, hover = T))
+```
+
+<br>
+
+<br>
+
+## Network Breakdown Tables {.tabset .tabset-pills}
+
+### Protocol List
+```{r ProtocolList,echo=FALSE,message=FALSE}
+#List of protocols used
+data%>%
+  distinct(Protocol)%>%
+  arrange(Protocol)%>%
+  datatable(filter = "top")
+```
+
+### IP and Mac Address
+```{r ipandmaclist,echo=FALSE,message=FALSE}
+s_distinct<-data%>%
+  distinct(Source,Source.MAC)%>%
+  rename(ip="Source",MAC="Source.MAC")
+d_distinct<-data%>%
+  distinct(Destination,Dst.MAC)%>%
+  rename(ip="Destination",MAC="Dst.MAC")
+devices<-rbind(s_distinct,d_distinct)
+devices<-devices%>%
+  distinct(ip,MAC)%>%
+  arrange(MAC)
+rm(s_distinct,d_distinct)
+
+devices%>%
+  datatable(filter = "top")
+```
+
+### IP,Mac Address and Port
+```{r ipMacPorts,echo=FALSE,message=FALSE}
+#List of ports by IP and MAC
+s_distinct<-data%>%
+  distinct(Source,Source.MAC,SRC.Port)%>%
+  rename(ip="Source",MAC="Source.MAC",Port="SRC.Port")
+d_distinct<-data%>%
+  distinct(Destination,Dst.MAC,DST.Port)%>%
+  rename(ip="Destination",MAC="Dst.MAC",Port="DST.Port")
+devices_wports<-rbind(s_distinct,d_distinct)
+devices_wports<-devices_wports%>%
+  distinct(ip,MAC,Port)%>%
+  arrange(MAC,ip)
+rm(s_distinct,d_distinct)
+
+devices_wports%>%
+  datatable(filter = "top")
+```
+
+### Network Connections
+```{r NetworkConnectionsProtocol, echo=FALSE,message=FALSE}
+data%>%
+  group_by(Source,Destination)%>%
+  distinct(Protocol)%>%
+  arrange(Protocol,Source,Destination)%>%
+  ungroup()%>%
+  datatable(filter = "top")
+```
+
+### Network Connections with Ports
+```{r NetworkConnectionsProtocolandPort, echo=FALSE,message=FALSE}
+data%>%
+  group_by(Source,SRC.Port,Destination,DST.Port,Protocol)%>%
+  summarise(NumberOfConnections=n())%>%
+  arrange(Protocol,Source,Destination,SRC.Port,DST.Port)%>%
+  ungroup()%>%
+  datatable(filter = "top")
+```
+
+### Time Between Packages
+```{r avgtimebtwpackages,echo=FALSE,message=FALSE}
+#Average Time Between Packages by Source and Destination
+data%>%
+  group_by(Source,Destination)%>%
+  summarise(AverageTime=mean(Delta),MinTime=min(Delta),MaxTime=max(Delta))%>%
+  ungroup()%>%
+  arrange(desc(AverageTime))%>%
+  datatable(filter = "top")
+```
+
+### Package Size
+```{r avgpackagesize,echo=FALSE,message=FALSE}
+#Average package Size by Source and Destination
+data%>%
+  group_by(Source,Destination)%>%
+  summarise(AverageSize=mean(Length),MinSize=min(Length),MaxSize=max(Length))%>%
+  ungroup()%>%
+  arrange(desc(AverageSize))%>%
+  datatable(filter = "top")
+```
