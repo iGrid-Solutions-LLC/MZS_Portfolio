@@ -27,6 +27,11 @@ This project utilizes the Diamonds data from R and converts it into a CSV, clean
 This showcases what a draft report based on PCAP data pulled using wireshark might look like. It is built in R, using RMarkdown, with the final result being saved as an html file. The script included can also be used for one off analysis as well, and has examples of several other graphs that might be of interest in this sort of analysis. 
 
 
+## PricelistAnalysis
+
+This was a project I was asked to do by a friend for their RP Game. The concern was the balance of their existing price list, and I was asked to see how well their prices were balanced in their game. The PDF file in this folder contains the results of this analysis. 
+
+
 ## SimpleShinyApp
 
 This is the most basic form of a shiny application, no flourishes, no extra features. It showcases the simplest structure a shiny app can take, and how it can be run outside of the Golem framework. 

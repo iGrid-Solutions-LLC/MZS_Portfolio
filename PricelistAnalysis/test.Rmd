@@ -1,0 +1,381 @@
+---
+title: "Ransera Price List Initial Analysis"
+author: "Mirage, Domain Storyteller of the Imperium"
+date: "2022-10-31"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(openxlsx)
+library(gt)
+
+setwd("C://Users//12567//Desktop//R//Ransera")
+
+data<-read.xlsx("PriceList.xlsx",sheet="PriceList")
+PL<-tibble(data)
+rm(data)
+```
+
+## Introduction
+
+The goal of this initial analysis is to examine the distribution of price for each of the broad categories of items available in Ransera. Within these categories there are additional subcategories which can be analyzed as well, but the analysis of these subcategories is outside the scope of this initial report.
+
+&nbsp;
+
+```{r Categories, echo=FALSE}
+PL%>%
+  distinct(Category)%>%
+  gt()%>%
+  tab_style(
+    location=cells_column_labels(),
+    cell_text(weight="bold")
+  )
+```
+
+&nbsp;
+
+## Ransera Currency Use
+
+The currency of Ransera is separated into 3 units of measure: Copper (cp), Silver (sp) and Gold (gp). In the setting of Ransera the cp is meant to be the benchmark for everyday use by characters. 100 cp is equal to 1 sp, and 10 sp is equal to 1 gp. With this relationship in mind we would expect the price list to reflect a greater number of items to cost n amount of cp or sp, however, the reality is the larger majority of the price list utilizes the highest currency denomination. This suggests a possible imbalance in the current distribution of pricing across all categories.
+
+&nbsp;
+
+```{r CurrencyCount,echo=FALSE}
+PL%>%
+  count(Currency)%>%
+  rename("Count"=n)%>%
+  gt()%>%
+  tab_header(
+    title="Count of Currency Use",
+    subtitle="Number of times a currency is used"
+  )
+```
+
+## 
+
+&nbsp;
+
+## Currency Distribution Across Price List
+
+Looking at each of the categories with the figure below, we can see which categories have the most items in the price list, and the break down of how many of those items use cp, sp or gp as their currency. This view helps to visually highlight th,e abundance of items which cost gp (shown in blue) vs sp and cp (green and red respectively).
+
+&nbsp;
+
+```{r CurrencyDistbyCat,echo=FALSE}
+PL%>%
+  group_by(Currency,Category)%>%
+  count()%>%
+  rename("Count"=n)%>%
+  mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+  ggplot(aes(x=Category,y=Count,fill=Currency))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x=element_text(angle=90,size=8,hjust=0.95,vjust=.5))+
+  ggtitle("Currency Distribution by Category")
+```
+
+&nbsp;
+
+## Minimum and Maximum Price by Category
+
+We can also examine the highest and lowest price found within each category. Those Categories that have both a minimum and maximum price in gp are potentially priority targets for further examination and possible redistribution of pricing for their list items.
+
+&nbsp;
+
+```{r MinMax,echo=FALSE}
+PL_max<-PL%>%
+  group_by(Category)%>%
+  filter(Category!="Professions",Currency=="gp")%>%
+  filter(Price==max(Price))%>%
+  distinct(Category,Price,Currency)%>%
+  mutate(Min_Max="Max")
+
+
+PL_min<-PL%>%
+  group_by(Category)%>%
+  filter(Category!="Professions")%>%
+  filter(Price==min(Price))%>%
+  mutate(lowest=ifelse(Currency=="gp",3,
+                       ifelse(Currency=="sp",2,
+                              ifelse(Currency=="cp",1,NA))))%>%
+  filter(lowest==min(lowest))%>%
+  select(-lowest)%>%
+  distinct(Category,Price,Currency)%>%
+  mutate(Min_Max="Min")
+
+PL_minmax<-rbind(PL_max,PL_min)
+rm(PL_max,PL_min)
+
+#Table of Min and Max
+PL_minmax%>%
+  select(Min_Max,Category,Price,Currency)%>%
+  arrange(Category,Min_Max)%>%
+  gt()%>%
+  tab_header(
+    title="Minimum and Maximum Price per Category"
+  )%>%
+  tab_style(
+    locations = cells_column_labels(columns=everything()),
+    cell_text(weight="bold")
+  )%>%
+  tab_style(
+    locations=cells_title(groups="title"),
+    cell_text(weight="bold")
+  )%>%
+  tab_style(
+    locations=cells_row_groups(),
+    cell_text(weight="bold")
+  )%>%
+  tab_options(
+    table.width = px(550),
+    data_row.padding = px(1),
+    row_group.padding = px(1),
+    column_labels.padding = px(1),
+    heading.padding = px(1)
+  )
+```
+
+&nbsp;
+
+## Price Distribution per Category
+
+Finally a brief look at the distribution of pricing for each individual category. By studying these distributions it can be determined which categories should be prioritized for redistribution. Focus should be given to those Categories which possess prices above their currency shift range (i.e. 200 cp instead of 2 sp) and those which have a distribution that heavily favors gp over both cp and sp.
+
+&nbsp;
+
+```{r DistPlotCat,echo=FALSE}
+
+  PL%>%
+    filter(Category=="Animals")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram(bins=10)+
+    facet_wrap(~Currency)+
+    ggtitle("Animals Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+  
+  
+  PL%>%
+    filter(Category=="Armor")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram(bins=20)+
+    facet_wrap(~Currency)+
+    ggtitle("Armor Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+  
+   PL%>%
+    filter(Category=="Battlefield_Gear")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Battlefield_Gear Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Clothing")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Clothing Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Entertainment_Gear")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Entertainment_Gear Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Foodstuffs")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Foodstuffs Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Furniture")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Furniture Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Land_and_Structures")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Land_and_Structures Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Larceny_Gear")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Larceny_Gear Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Lodging")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram(bins=10)+
+    facet_wrap(~Currency)+
+    ggtitle("Lodging Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Melee_Weaponry")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Melee_Weaponry Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Mounted_Related_Gear")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Mounted_Related_Gear Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Naval")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Naval Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Ranged_Weaponry")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Ranged_Weaponry Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Religious_Gear")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Religious_Gear Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Slaves")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Slaves Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Subterranean_Items")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Subterranean_Items Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Tools_and_items")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Tools_and_items Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Trade_Goods")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Trade_Goods Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+   
+   PL%>%
+    filter(Category=="Wildreness_Exploration")%>%
+    group_by(Currency)%>%
+    mutate(Currency=factor(Currency, levels=c("cp","sp","gp")))%>%
+    ggplot(aes(x=Price,fill=Currency))+
+    geom_histogram()+
+    facet_wrap(~Currency)+
+    ggtitle("Wildreness_Exploration Price Distribution")+
+    theme(legend.position = "none",
+          plot.title = element_text(size=18))
+```
+
+&nbsp;
+
+## Conclusion
+
+The current price list is biased toward the use of Gold (gp) over the other currency. Most Categories utilize gp with more frequency than the other currency, with some such as Slaves and Subterranean_Items use gp exclusively. These findings run counter to the intended goal of the price list which is to utilize Copper (cp) as the base standard of cost. The Categories Foodstuffs and Clothing appear to be the closest in line with the stated intent of the price list, but even in these categories there is an overabundance of items which cost gp which suggest these items are not solely luxury goods.
+
+This analysis does not take into consideration modifiers which would likely tip the bias further toward the use of gp. There is evidence that there is crossover between the units in the distributions as well, with items costing in excess of 100 cp still being counted as cp instead of as sp. This may also be true for some items that are in excess of 10 sp and not counted in gp.
+
+A full conclusion cannot be reached with just this initial analysis. It is suggested that additional analysis be carried out on specific categories of the price list to determine the frequency and root cause of the inherent bias observed. It is recommended the next analysis focus on the categories of Foodstuffs and Clothing as these two categories showed the closest resemblance to the desired price distribution.
