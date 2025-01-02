@@ -7,6 +7,11 @@ This repository is used to store example projects and demos.
 This project focuses on pulling data from various sources, such as NIST, CISA, etc., and transforming the data for use in a dashboard. The ultimate goal is to build a dashboard that will update automatically as new data is released. At this time the code is just experimental, and the dashboard component has not been included yet. We have also seen that the format of the data changes unexpectedly, which is an additional variable that we are working to understand. 
 
 
+## CreativeCoding
+
+This project is a tangent from most of my other projects. Its goal was to explore ways that coding could be used creatively, exploring several interesting packages that can be used to create shapes and diagrams that are interesting to look at. These concepts could be used to create background images, or perhaps just act as an interesting converation about the potential of code and mathetmatics when generating unique imagery.
+
+
 ## DemoApp
 
 This is a simple shiny application built in R using the Golem framework. It can be run in RStudio, and uses the renv package to keep track of the needed packages. The app itself is based on the Cars dataset, with the primary purpose being to showcase dynamic and interactive dashboards using shiny. 
