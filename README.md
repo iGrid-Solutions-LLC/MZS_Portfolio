@@ -32,3 +32,8 @@ This showcases what a draft report based on PCAP data pulled using wireshark mig
 This is the most basic form of a shiny application, no flourishes, no extra features. It showcases the simplest structure a shiny app can take, and how it can be run outside of the Golem framework. 
 
 
+## StockSimulator
+
+This was small side project to test methods of simulating stock and portfolio performance over time. The code in here is not well vetted, or useful, and serves as just a starting point in case I ever come back to this project. 
+
+
